@@ -1,4 +1,5 @@
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/docs/core/address.md"))]
+use itoa::Buffer;
 use std::fmt::{Display, Formatter};
 
 /// A unique identifier for random variables and observation sites in probabilistic models.
@@ -22,6 +23,24 @@ pub struct Address(pub String);
 impl Display for Address {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Address {
+    /// Create a new address by appending `#<index>` to the provided name.
+    pub fn indexed<S: AsRef<str>>(name: S, index: usize) -> Address {
+        let name = name.as_ref();
+        let mut s = String::with_capacity(name.len() + 1 + 20);
+        s.push_str(name);
+        s.push('#');
+        let mut buf = Buffer::new();
+        s.push_str(buf.format(index));
+        Address(s)
+    }
+
+    /// Create a new address by appending `#<index>` to this address.
+    pub fn with_index(&self, index: usize) -> Address {
+        Address::indexed(&self.0, index)
     }
 }
 

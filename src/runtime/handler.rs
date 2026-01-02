@@ -113,7 +113,7 @@ pub fn run<A>(mut h: impl Handler, m: Model<A>) -> (A, Trace) {
                 } => {
                     let mut xs = Vec::with_capacity(n);
                     for i in 0..n {
-                        let addr = Address(format!("{}#{}", addr_prefix.0, i));
+                        let addr = addr_prefix.with_index(i);
                         let x = h.on_sample_f64(&addr, &*dist);
                         xs.push(x);
                     }
@@ -147,7 +147,7 @@ pub fn run<A>(mut h: impl Handler, m: Model<A>) -> (A, Trace) {
                     k,
                 } => {
                     for (i, value) in values.into_iter().enumerate() {
-                        let addr = Address(format!("{}#{}", addr_prefix.0, i));
+                        let addr = addr_prefix.with_index(i);
                         h.on_observe_f64(&addr, &*dist, value);
                     }
                     m = k(());
@@ -186,7 +186,7 @@ pub fn run<A>(mut h: impl Handler, m: Model<A>) -> (A, Trace) {
                     k,
                 } => {
                     for (i, value) in values.into_iter().enumerate() {
-                        let addr = Address(format!("{}#{}", addr_prefix.0, i));
+                        let addr = addr_prefix.with_index(i);
                         h.on_observe_usize(&addr, &*dist, value);
                     }
                     m = k(());

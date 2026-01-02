@@ -1031,6 +1031,7 @@ dependencies = [
  "cargo-llvm-cov",
  "clap 4.5.45",
  "criterion",
+ "itoa",
  "libm",
  "mdbook",
  "mdbook-admonish",
