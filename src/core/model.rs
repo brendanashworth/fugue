@@ -29,6 +29,17 @@ pub enum Model<A> {
         /// Continuation function to apply to the sampled value.
         k: Box<dyn FnOnce(f64) -> Model<A> + Send + 'static>,
     },
+    /// Sample a vector of f64 values from the same distribution.
+    SampleVecF64 {
+        /// Base address used to derive indexed addresses.
+        addr_prefix: Address,
+        /// Distribution to sample from.
+        dist: Box<dyn Distribution<f64>>,
+        /// Number of samples to draw.
+        n: usize,
+        /// Continuation function to apply to the sampled vector.
+        k: Box<dyn FnOnce(Vec<f64>) -> Model<A> + Send + 'static>,
+    },
     /// Sample from a bool distribution (Bernoulli).
     SampleBool {
         /// Unique identifier for this sampling site.
@@ -67,6 +78,17 @@ pub enum Model<A> {
         /// Continuation function (always receives unit).
         k: Box<dyn FnOnce(()) -> Model<A> + Send + 'static>,
     },
+    /// Observe/condition on a vector of f64 values.
+    ObserveVecF64 {
+        /// Base address used to derive indexed addresses.
+        addr_prefix: Address,
+        /// Distribution that generates the observed value.
+        dist: Box<dyn Distribution<f64>>,
+        /// The observed values to condition on.
+        values: Vec<f64>,
+        /// Continuation function (always receives unit).
+        k: Box<dyn FnOnce(()) -> Model<A> + Send + 'static>,
+    },
     /// Observe/condition on a bool value.
     ObserveBool {
         /// Unique identifier for this observation site.
@@ -97,6 +119,17 @@ pub enum Model<A> {
         dist: Box<dyn Distribution<usize>>,
         /// The observed value to condition on.
         value: usize,
+        /// Continuation function (always receives unit).
+        k: Box<dyn FnOnce(()) -> Model<A> + Send + 'static>,
+    },
+    /// Observe/condition on a vector of usize values.
+    ObserveVecUsize {
+        /// Base address used to derive indexed addresses.
+        addr_prefix: Address,
+        /// Distribution that generates the observed value.
+        dist: Box<dyn Distribution<usize>>,
+        /// The observed values to condition on.
+        values: Vec<usize>,
         /// Continuation function (always receives unit).
         k: Box<dyn FnOnce(()) -> Model<A> + Send + 'static>,
     },
@@ -135,6 +168,20 @@ pub fn sample_f64(addr: Address, dist: impl Distribution<f64> + 'static) -> Mode
     Model::SampleF64 {
         addr,
         dist: Box::new(dist),
+        k: Box::new(pure),
+    }
+}
+
+/// Sample a vector of f64 values from the same distribution.
+pub fn sample_vec_f64(
+    addr_prefix: Address,
+    n: usize,
+    dist: impl Distribution<f64> + 'static,
+) -> Model<Vec<f64>> {
+    Model::SampleVecF64 {
+        addr_prefix,
+        dist: Box::new(dist),
+        n,
         k: Box::new(pure),
     }
 }
@@ -332,6 +379,34 @@ where
     T::make_observe_model(addr, Box::new(dist), value)
 }
 
+/// Observe/condition on a vector of f64 values.
+pub fn observe_vec_f64(
+    addr_prefix: Address,
+    dist: impl Distribution<f64> + 'static,
+    values: Vec<f64>,
+) -> Model<()> {
+    Model::ObserveVecF64 {
+        addr_prefix,
+        dist: Box::new(dist),
+        values,
+        k: Box::new(pure),
+    }
+}
+
+/// Observe/condition on a vector of usize values.
+pub fn observe_vec_usize(
+    addr_prefix: Address,
+    dist: impl Distribution<usize> + 'static,
+    values: Vec<usize>,
+) -> Model<()> {
+    Model::ObserveVecUsize {
+        addr_prefix,
+        dist: Box::new(dist),
+        values,
+        k: Box::new(pure),
+    }
+}
+
 /// Add an unnormalized log-weight `logw` to the model, returning a `Model<()>`.
 ///
 /// Factors allow encoding soft constraints or arbitrary log-probability contributions to the model.
@@ -428,6 +503,17 @@ impl<A: 'static> ModelExt<A> for Model<A> {
                 dist,
                 k: Box::new(move |x| k1(x).bind(k)),
             },
+            Model::SampleVecF64 {
+                addr_prefix,
+                dist,
+                n,
+                k: k1,
+            } => Model::SampleVecF64 {
+                addr_prefix,
+                dist,
+                n,
+                k: Box::new(move |xs| k1(xs).bind(k)),
+            },
             Model::SampleBool { addr, dist, k: k1 } => Model::SampleBool {
                 addr,
                 dist,
@@ -452,6 +538,17 @@ impl<A: 'static> ModelExt<A> for Model<A> {
                 addr,
                 dist,
                 value,
+                k: Box::new(move |()| k1(()).bind(k)),
+            },
+            Model::ObserveVecF64 {
+                addr_prefix,
+                dist,
+                values,
+                k: k1,
+            } => Model::ObserveVecF64 {
+                addr_prefix,
+                dist,
+                values,
                 k: Box::new(move |()| k1(()).bind(k)),
             },
             Model::ObserveBool {
@@ -485,6 +582,17 @@ impl<A: 'static> ModelExt<A> for Model<A> {
                 addr,
                 dist,
                 value,
+                k: Box::new(move |()| k1(()).bind(k)),
+            },
+            Model::ObserveVecUsize {
+                addr_prefix,
+                dist,
+                values,
+                k: k1,
+            } => Model::ObserveVecUsize {
+                addr_prefix,
+                dist,
+                values,
                 k: Box::new(move |()| k1(()).bind(k)),
             },
             Model::Factor { logw, k: k1 } => Model::Factor {
@@ -716,6 +824,47 @@ mod tests {
             trav,
         );
         assert_eq!(v2, vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn sample_and_observe_vec_f64() {
+        let m = sample_vec_f64(addr!("x"), 3, Normal::new(0.0, 1.0).unwrap()).and_then(|xs| {
+            observe_vec_f64(addr!("y"), Normal::new(xs[0], 1.0).unwrap(), vec![0.1, 0.2])
+                .map(move |_| xs[0])
+        });
+
+        let mut rng = StdRng::seed_from_u64(7);
+        let (_val, trace) = run(
+            PriorHandler {
+                rng: &mut rng,
+                trace: Trace::default(),
+            },
+            m,
+        );
+
+        assert!(trace.choices.contains_key(&addr!("x#0")));
+        assert!(trace.log_likelihood.is_finite());
+    }
+
+    #[test]
+    fn observe_vec_usize_records_likelihood() {
+        let m = observe_vec_usize(
+            addr!("obs"),
+            Categorical::new(vec![0.2, 0.3, 0.5]).unwrap(),
+            vec![0, 2, 1],
+        )
+        .map(|_| ());
+
+        let mut rng = StdRng::seed_from_u64(8);
+        let (_val, trace) = run(
+            PriorHandler {
+                rng: &mut rng,
+                trace: Trace::default(),
+            },
+            m,
+        );
+
+        assert!(trace.log_likelihood.is_finite());
     }
 
     #[test]

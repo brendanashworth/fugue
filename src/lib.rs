@@ -20,8 +20,9 @@ pub use core::distribution::{
     Poisson, Uniform,
 };
 pub use core::model::{
-    factor, guard, observe, pure, sample, sample_bool, sample_f64, sample_u64, sample_usize,
-    sequence_vec, traverse_vec, zip, Model, ModelExt, SampleType,
+    factor, guard, observe, observe_vec_f64, observe_vec_usize, pure, sample, sample_bool,
+    sample_f64, sample_u64, sample_usize, sample_vec_f64, sequence_vec, traverse_vec, zip, Model,
+    ModelExt, SampleType,
 };
 pub use runtime::handler::Handler;
 pub use runtime::interpreters::{
