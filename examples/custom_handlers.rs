@@ -3,6 +3,7 @@ use fugue::runtime::interpreters::PriorHandler;
 use fugue::runtime::trace::{Choice, ChoiceValue, Trace};
 use fugue::*;
 use rand::{thread_rng, Rng};
+use compact_str::CompactString;
 use std::collections::HashMap;
 
 // ANCHOR: basic_custom_handler
@@ -199,7 +200,7 @@ struct ExecutionStats {
     observe_counts: HashMap<String, u32>,
     factor_count: u32,
     total_log_weight: f64,
-    parameter_ranges: HashMap<String, (f64, f64)>, // Address -> (min, max) for f64 params
+    parameter_ranges: HashMap<CompactString, (f64, f64)>, // Address -> (min, max) for f64 params
 }
 
 impl Default for ExecutionStats {

@@ -222,7 +222,7 @@ fn test_public_exports_accessibility() {
 
     // Address system
     let _addr = addr!("test");
-    let _address = Address("test".to_string());
+    let _address = Address("test".to_string().into());
 
     // Distributions - test construction to verify exports
     let _normal = Normal::new(0.0, 1.0).unwrap();

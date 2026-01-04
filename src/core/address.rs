@@ -1,4 +1,5 @@
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/docs/core/address.md"))]
+use compact_str::CompactString;
 use itoa::Buffer;
 use std::fmt::{Display, Formatter};
 
@@ -19,7 +20,7 @@ use std::fmt::{Display, Formatter};
 /// map.insert(addr2, 2.0);
 /// ```
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Address(pub String);
+pub struct Address(pub CompactString);
 impl Display for Address {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -30,7 +31,7 @@ impl Address {
     /// Create a new address by appending `#<index>` to the provided name.
     pub fn indexed<S: AsRef<str>>(name: S, index: usize) -> Address {
         let name = name.as_ref();
-        let mut s = String::with_capacity(name.len() + 1 + 20);
+        let mut s = CompactString::new("");
         s.push_str(name);
         s.push('#');
         let mut buf = Buffer::new();
@@ -71,10 +72,10 @@ impl Address {
 #[macro_export]
 macro_rules! addr {
     ($name:expr) => {
-        $crate::core::address::Address($name.to_string())
+        $crate::core::address::Address($name.into())
     };
     ($name:expr, $i:expr) => {
-        $crate::core::address::Address(format!("{}#{}", $name, $i))
+        $crate::core::address::Address(format!("{}#{}", $name, $i).into())
     };
 }
 
@@ -85,17 +86,17 @@ mod tests {
 
     #[test]
     fn display_formats_inner_string() {
-        let a = Address("alpha".to_string());
+        let a = Address("alpha".into());
         assert_eq!(a.to_string(), "alpha");
     }
 
     #[test]
     fn addr_macro_basic_and_indexed() {
         let a = addr!("x");
-        assert_eq!(a.0, "x");
+        assert_eq!(a.0.as_str(), "x");
 
         let b = addr!("x", 3);
-        assert_eq!(b.0, "x#3");
+        assert_eq!(b.0.as_str(), "x#3");
     }
 
     #[test]
@@ -116,7 +117,7 @@ mod tests {
         bset.insert(b);
         bset.insert(a1);
         // Expect alphabetical order: "x" comes after "y"? No, "x" < "y"
-        let ordered: Vec<String> = bset.into_iter().map(|a| a.0).collect();
-        assert_eq!(ordered, vec!["x".to_string(), "y".to_string()]);
+        let ordered: Vec<CompactString> = bset.into_iter().map(|a| a.0).collect();
+        assert_eq!(ordered, vec![CompactString::from("x"), CompactString::from("y")]);
     }
 }

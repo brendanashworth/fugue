@@ -62,10 +62,12 @@ macro_rules! plate {
 #[macro_export]
 macro_rules! scoped_addr {
     ($scope:expr, $name:expr) => {
-        $crate::core::address::Address(format!("{}::{}", $scope, $name))
+        $crate::core::address::Address(format!("{}::{}", $scope, $name).into())
     };
     ($scope:expr, $name:expr, $($indices:expr),+) => {
-        $crate::core::address::Address(format!("{}::{}#{}", $scope, $name, format!("{}", format_args!($($indices),+))))
+        $crate::core::address::Address(
+            format!("{}::{}#{}", $scope, $name, format!("{}", format_args!($($indices),+))).into(),
+        )
     };
 }
 
